@@ -7,8 +7,9 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,6 +30,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bigkoo.pickerview.OptionsPickerView;
 import com.bigkoo.pickerview.TimePickerView;
 import com.zxy.tiny.Tiny;
 import com.zxy.tiny.callback.FileWithBitmapCallback;
@@ -36,8 +38,14 @@ import com.zxy.tiny.callback.FileWithBitmapCallback;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+
+import db.AreaBean;
+import db.CityBean;
+import db.DBManager;
+import db.ProvinceBean;
 
 public class MainActivity extends AppCompatActivity  implements View.OnClickListener {
     private int mYear;
@@ -46,6 +54,7 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
     private AlertDialog alertDialogNation;
     private Button datePicker;
     private Button buttonSelectNation;
+    private Button buttonSelectAddress;
     // 声明一个独一无二的标识，来作为要显示DatePicker的Dialog的ID：
     static final int DATE_DIALOG_ID = 0;
     //调取系统摄像头的请求码
@@ -64,10 +73,23 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
     private TextView editTextDate;
     private TextView editTextID;
     private EditText editTextNation;
+    private EditText editTextAddress;
+
+    private OptionsPickerView pvOptions;//地址选择器
+    private ArrayList<ProvinceBean> options1Items = new ArrayList<>();//省
+    private ArrayList<ArrayList<CityBean>> options2Items = new ArrayList<>();//市
+    private ArrayList<ArrayList<ArrayList<AreaBean>>> options3Items = new ArrayList<>();//区
+    private ArrayList<String> Provincestr = new ArrayList<>();//省
+    private ArrayList<ArrayList<String>> Citystr = new ArrayList<>();//市
+    private ArrayList<ArrayList<ArrayList<String>>> Areastr = new ArrayList<>();//区
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        buttonSelectAddress=findViewById(R.id.buttonSelectAddress);
+        editTextAddress =  findViewById(R.id.editTextAddress);
         editTextNation=findViewById(R.id.editTextNation);
         datePicker = (Button) findViewById(R.id.buttonSelect);
         buttonSelectNation=findViewById(R.id.buttonSelectNation);
@@ -81,6 +103,8 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
         mYear = currentDate.get(Calendar.YEAR);
         mMonth = currentDate.get(Calendar.MONTH);
         mDay = currentDate.get(Calendar.DAY_OF_MONTH);
+        initData();
+        initEvent();
 // 设置文本的内容：
         editTextDate.setText(new StringBuilder().append(mYear).append("年")
                 .append(mMonth + 1).append("月")// 得到的月份+1，因为从0开始
@@ -123,7 +147,94 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
         alertDialogNation = alertBuilder.create();
         alertDialogNation.show();
     }
+    private void initData() {
+        //选项选择器
+        pvOptions = new OptionsPickerView(this);
+        // 获取数据库
+        SQLiteDatabase db = DBManager.getdb(getApplication());
+        //省
+        Cursor cursor = db.query("province", null, null, null, null, null,
+                null);
+        while (cursor.moveToNext()) {
+            int pro_id = cursor.getInt(0);
+            String pro_code = cursor.getString(1);
+            String pro_name = cursor.getString(2);
+            String pro_name2 = cursor.getString(3);
+            ProvinceBean provinceBean = new ProvinceBean(pro_id, pro_code, pro_name, pro_name2);
+            options1Items.add(provinceBean);//添加一级目录
+            Provincestr.add(cursor.getString(2));
+            //查询二级目录，市区
+            Cursor cursor1 = db.query("city", null, "province_id=?", new String[]{pro_id + ""}, null, null,
+                    null);
+            ArrayList<CityBean> cityBeanList = new ArrayList<>();
+            ArrayList<String> cityStr = new ArrayList<>();
+            //地区集合的集合（注意这里要的是当前省份下面，当前所有城市的地区集合我去）
+            ArrayList<ArrayList<AreaBean>> options3Items_03 = new ArrayList<>();
+            ArrayList<ArrayList<String>> options3Items_str = new ArrayList<>();
+            while (cursor1.moveToNext()) {
+                int cityid = cursor1.getInt(0);
+                int province_id = cursor1.getInt(1);
+                String code = cursor1.getString(2);
+                String name = cursor1.getString(3);
+                String provincecode = cursor1.getString(4);
+                CityBean cityBean = new CityBean(cityid, province_id, code, name, provincecode);
+                //添加二级目录
+                cityBeanList.add(cityBean);
+                cityStr.add(cursor1.getString(3));
+                //查询三级目录
+                Cursor cursor2 = db.query("area", null, "city_id=?", new String[]{cityid + ""}, null, null,
+                        null);
+                ArrayList<AreaBean> areaBeanList = new ArrayList<>();
+                ArrayList<String> areaBeanstr = new ArrayList<>();
+                while (cursor2.moveToNext()) {
+                    int areaid = cursor2.getInt(0);
+                    int city_id = cursor2.getInt(1);
+//                    String code0=cursor2.getString(2);
+                    String areaname = cursor2.getString(3);
+                    String citycode = cursor2.getString(4);
+                    AreaBean areaBean = new AreaBean(areaid, city_id, areaname, citycode);
+                    areaBeanList.add(areaBean);
+                    areaBeanstr.add(cursor2.getString(3));
+                }
+                options3Items_str.add(areaBeanstr);//本次查询的存储内容
+                options3Items_03.add(areaBeanList);
+            }
+            options2Items.add(cityBeanList);//增加二级目录数据
+            Citystr.add(cityStr);
+            options3Items.add(options3Items_03);//添加三级目录
+            Areastr.add(options3Items_str);
+        }
+        //设置三级联动效果
+        pvOptions.setPicker(Provincestr, Citystr, Areastr, true);
+        //设置选择的三级单位
+//        pvOptions.setLabels("省", "市", "区");
+        pvOptions.setTitle("选择城市");
+        //设置是否循环滚动
+        pvOptions.setCyclic(false, false, false);
+        //设置默认选中的三级项目
+        //监听确定选择按钮
+        pvOptions.setSelectOptions(0, 0, 0);
 
+        pvOptions.setOnoptionsSelectListener(new OptionsPickerView.OnOptionsSelectListener() {
+            @Override
+            public void onOptionsSelect(int options1, int option2, int options3) {
+                //返回的分别是三个级别的选中位置
+                String tx = options1Items.get(options1).getPro_name()
+                        + options2Items.get(options1).get(option2).getName()
+                        + options3Items.get(options1).get(option2).get(options3).getName();
+                editTextAddress.setText(tx);
+            }
+        });
+    }
+
+    private void initEvent() {
+        buttonSelectAddress.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                pvOptions.show();
+            }
+        });
+    }
     private String getTimes(Date date) {//可根据需要自行截取数据显示
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         return format.format(date);

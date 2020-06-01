@@ -24,7 +24,8 @@ android {
 }
 
 dependencies {
-    implementation 'com.contrarywind:Android-PickerView:3.2.7'
+    implementation 'com.bigkoo:pickerview:2.1.1'
+
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.android.support:appcompat-v7:28.0.0'
     implementation 'com.android.support.constraint:constraint-layout:1.1.3'
@@ -34,4 +35,5 @@ dependencies {
     implementation 'com.android.support:design:28.0.0'
     implementation 'de.hdodenhof:circleimageview:2.1.0'
     implementation 'com.zxy.android:tiny:0.1.0'
+
 }
