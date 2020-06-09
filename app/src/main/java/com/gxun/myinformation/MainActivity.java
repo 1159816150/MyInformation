@@ -11,6 +11,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.opengl.Visibility;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -20,6 +21,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -47,11 +49,12 @@ import db.CityBean;
 import db.DBManager;
 import db.ProvinceBean;
 
-public class MainActivity extends AppCompatActivity  implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private int mYear;
     private int mMonth;
     private int mDay;
     private AlertDialog alertDialogNation;
+    private Button  buttonSubmit,buttonReset;
     private Button datePicker;
     private Button buttonSelectNation;
     private Button buttonSelectAddress;
@@ -74,6 +77,7 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
     private TextView editTextID;
     private EditText editTextNation;
     private EditText editTextAddress;
+    private EditText editTextName;
 
     private OptionsPickerView pvOptions;//地址选择器
     private ArrayList<ProvinceBean> options1Items = new ArrayList<>();//省
@@ -87,53 +91,106 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        buttonSelectAddress=findViewById(R.id.buttonSelectAddress);
-        editTextAddress =  findViewById(R.id.editTextAddress);
-        editTextNation=findViewById(R.id.editTextNation);
+        buttonReset=findViewById(R.id.buttonReset);
+        buttonSubmit=findViewById(R.id.buttonSubmit);
+        buttonSelectAddress = findViewById(R.id.buttonSelectAddress);
+        editTextAddress = findViewById(R.id.editTextAddress);
+        editTextName=findViewById(R.id.editTextName);
+        editTextNation = findViewById(R.id.editTextNation);
         datePicker = (Button) findViewById(R.id.buttonSelect);
-        buttonSelectNation=findViewById(R.id.buttonSelectNation);
+        buttonSelectNation = findViewById(R.id.buttonSelectNation);
         imageView = findViewById(R.id.image);
         imageView1 = findViewById(R.id.imageView);
         editTextDate = findViewById(R.id.editTextDate);
-        editTextID=findViewById(R.id.editTextID);
-                // 获得当前的日期：
+        editTextID = findViewById(R.id.editTextID);
+        // 获得当前的日期：
         final Calendar currentDate = Calendar.getInstance();
         datePicker.setOnClickListener(new btnDow_OnClickListener());
         mYear = currentDate.get(Calendar.YEAR);
         mMonth = currentDate.get(Calendar.MONTH);
         mDay = currentDate.get(Calendar.DAY_OF_MONTH);
+
+        //设置只读
+        editTextNation.setKeyListener(null);
+        editTextAddress.setKeyListener(null);
+        editTextDate.setKeyListener(null);
+         //设置日期
         initData();
         initEvent();
-// 设置文本的内容：
+
+         // 设置文本的内容：
         editTextDate.setText(new StringBuilder().append(mYear).append("年")
                 .append(mMonth + 1).append("月")// 得到的月份+1，因为从0开始
                 .append(mDay).append("日"));
- //判断身份证是否正确
+        //判断身份证是否正确
         editTextID.setOnFocusChangeListener(new android.view.View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
                 if (hasFocus) {
                     // 此处为得到焦点时的处理内容
                 } else {
-                    IdCardUtil idCardUtil=new IdCardUtil(editTextID.getText().toString().trim());
-                     idCardUtil.isCorrect();
-                     String errorMsg=idCardUtil.getErrMsg();
-                    Toast.makeText(MainActivity.this,errorMsg,Toast.LENGTH_SHORT).show();
-                    Log.d("TAG",errorMsg);
-                    }
-
-                    // 此处为失去焦点时的处理内容
+                    IdCardUtil idCardUtil = new IdCardUtil(editTextID.getText().toString().trim());
+                    idCardUtil.isCorrect();
+                    String errorMsg = idCardUtil.getErrMsg();
+                    Toast.makeText(MainActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    Log.d("TAG", errorMsg);
                 }
 
+                // 此处为失去焦点时的处理内容
+            }
+
         });
+
+        //判断空值
+        buttonSubmit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                IdCardUtil idCardUtil = new IdCardUtil(editTextID.getText().toString().trim());
+                idCardUtil.isCorrect();
+                String errorMsg = idCardUtil.getErrMsg();
+                if (TextUtils.isEmpty(editTextName.getText())){
+                    Toast.makeText(MainActivity.this,"姓名不能为空",Toast.LENGTH_SHORT).show();
+                }else if(TextUtils.isEmpty(editTextNation.getText())){
+                    Toast.makeText(MainActivity.this,"民族不能为空",Toast.LENGTH_SHORT).show();
+                }else if(TextUtils.isEmpty(editTextID.getText())){
+                    Toast.makeText(MainActivity.this,"身份证不能为空",Toast.LENGTH_SHORT).show();
+                }else if(TextUtils.isEmpty(editTextAddress.getText())){
+                    Toast.makeText(MainActivity.this,"地址不能为空",Toast.LENGTH_SHORT).show();
+                }else if(TextUtils.isEmpty(editTextDate.getText())){
+                    Toast.makeText(MainActivity.this,"生日不能为空",Toast.LENGTH_SHORT).show();
+                }else if(imageView.getVisibility()==0){
+                    Toast.makeText(MainActivity.this,"头像不能为空",Toast.LENGTH_SHORT).show();
+                }
+                else if ( idCardUtil.isCorrect()==0){
+                    Toast.makeText(MainActivity.this,"提交成功",Toast.LENGTH_SHORT).show();
+                }else{
+                    Toast.makeText(MainActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                }
+
+            }
+        });
+        //reset
+        buttonReset.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                editTextName.setText("");
+                editTextNation.setText("");
+                editTextAddress.setText("");
+                editTextDate.setText("");
+                editTextID.setText("");
+
+            }
+        });
+
     }
+
     //民族选择
-    public void showList(View view){
-        final String[] items = {"汉族", "蒙古族", "回族", "藏族", "维吾尔族", "苗族", "彝族", "壮族", "布依族", "朝鲜族", "满族", "侗族", "瑶族", "白族", "土家族",
-                "哈尼族", "哈萨克族", "傣族", "黎族", "傈僳族", "佤族", "畲族", "高山族", "拉祜族", "水族", "东乡族", "纳西族", "景颇族", "柯尔克孜族",
-                "土族", "达斡尔族", "仫佬族", "羌族", "布朗族", "撒拉族", "毛南族", "仡佬族", "锡伯族", "阿昌族", "普米族", "塔吉克族", "怒族", "乌孜别克族",
-                "俄罗斯族", "鄂温克族", "德昂族", "保安族", "裕固族", "京族", "塔塔尔族", "独龙族", "鄂伦春族", "赫哲族", "门巴族", "珞巴族", "基诺族"};
+    public void showList(View view) {
+        final String[] items = {"阿昌族", "保安族", "布朗族", "布依族", "白族", "朝鲜族", "德昂族", "独龙族", "达斡尔族", "东乡族",
+                "侗族", "傣族", "鄂伦春族", "俄罗斯族", "鄂温克族","高山族", "汉族", "哈尼族", "哈萨克族", "回族", "赫哲族", "基诺族",
+                "景颇族", "京族", "柯尔克孜族", "珞巴族", "傈僳族", "黎族", "拉祜族","门巴族", "蒙古族", "毛南族", "满族", "苗族",
+                "仫佬族", "纳西族", "怒族", "普米族", "羌族", "撒拉族", "水族", "畲族", "塔吉克族","土家族", "塔塔尔族", "土族", "维吾尔族",
+                "壮族", "乌孜别克族", "锡伯族", "裕固族", "彝族", "瑶族", "仡佬族", "佤族", "藏族"};
         AlertDialog.Builder alertBuilder = new AlertDialog.Builder(this);
         alertBuilder.setTitle("请选择民族");
         alertBuilder.setItems(items, new DialogInterface.OnClickListener() {
@@ -147,6 +204,7 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
         alertDialogNation = alertBuilder.create();
         alertDialogNation.show();
     }
+
     private void initData() {
         //选项选择器
         pvOptions = new OptionsPickerView(this);
@@ -235,10 +293,12 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
             }
         });
     }
+
     private String getTimes(Date date) {//可根据需要自行截取数据显示
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         return format.format(date);
     }
+
     /*
     初始化控件方法
      */
@@ -258,7 +318,6 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
         takePhotoTV.setOnClickListener(this);
         choosePhotoTV.setOnClickListener(this);
         cancelTV.setOnClickListener(this);
-
 
 
     }
@@ -294,7 +353,6 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
 
     /**
      * 当Activity调用showDialog函数时会触发该函数的调用：
-
      */
     @Override
     protected Dialog onCreateDialog(int id) {
@@ -308,6 +366,7 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
 
     /**
      * 修改头像按钮执行方法
+     *
      * @param view
      */
     public void UpdatePhoto(View view) {
@@ -376,7 +435,7 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
                     e.printStackTrace();
                 }
             } else {
-                Toast.makeText(this,"拒绝了你的请求",Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "拒绝了你的请求", Toast.LENGTH_SHORT).show();
                 //"权限拒绝");
                 // TODO: 2018/12/4 这里可以给用户一个提示,请求权限被拒绝了
             }
@@ -396,6 +455,7 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
 
     /**
      * startActivityForResult执行后的回调方法，接收返回的图片
+     *
      * @param requestCode
      * @param resultCode
      * @param data
@@ -450,7 +510,7 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
 
     @Override
     public void onClick(View view) {
-        switch (view.getId()){
+        switch (view.getId()) {
             case R.id.photograph:
                 //"点击了照相";
                 //  6.0之后动态申请权限 摄像头调取权限,SD卡写入权限
@@ -489,7 +549,8 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
             case R.id.cancel:
                 dialog.dismiss();//关闭对话框
                 break;
-            default:break;
+            default:
+                break;
         }
     }
 
